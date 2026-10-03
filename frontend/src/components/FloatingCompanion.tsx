@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, X, Send, AlertTriangle, Minus, ArrowRight, ChevronDown, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { Bot, X, Send, AlertTriangle, Minus, ArrowRight, ChevronDown, CheckCircle2, Loader2, ShieldCheck, Mic, MicOff, Settings2, Square } from 'lucide-react';
 import { createIncident } from '../api';
+
+type VoiceState = "disabled" | "requesting_permission" | "ready" | "listening" | "processing" | "speaking" | "error";
 
 export default function FloatingCompanion({ transactions, currentUser, onNavigate, onOpenIncident, demoContext }: any) {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,6 +10,24 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
   const [input, setInput] = useState('');
   const [contextTx, setContextTx] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice States
+  const [voiceState, setVoiceState] = useState<VoiceState>("disabled");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [speechRate, setSpeechRate] = useState(1.0);
+
+  const recognitionRef = useRef<any>(null);
+  const synth = window.speechSynthesis;
+  const messagesRef = useRef(messages);
+  const voiceStateRef = useRef(voiceState);
+  const continuousRef = useRef(isContinuousMode);
+
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { voiceStateRef.current = voiceState; }, [voiceState]);
+  useEffect(() => { continuousRef.current = isContinuousMode; }, [isContinuousMode]);
 
   const problemTx = transactions?.find((tx: any) => tx.id === 'TXN-VYR-5001' || tx.risk === 'HIGH');
   const [hasAlert, setHasAlert] = useState(false);
@@ -22,6 +42,15 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
     }
   };
 
+  // Reset conversation on user switch
+  useEffect(() => {
+    stopListening();
+    stopSpeaking();
+    setVoiceState("disabled");
+    setIsContinuousMode(false);
+    setMessages([]); 
+  }, [currentUser?.id]);
+
   useEffect(() => {
     if (problemTx && messages.length === 0) {
       setHasAlert(true);
@@ -29,7 +58,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
         {
           sender: 'ai',
           type: 'activity',
-          task: `Investigating ₹${problemTx.amount} payment`,
+          task: `Investigating ₹${problemTx.amount.toLocaleString()} payment`,
           status: 'Investigating',
           activities: [
             'Transaction identified',
@@ -60,9 +89,8 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
         }
       ]);
     }
-  }, [transactions, demoContext?.isRunning]); // Added demoContext dependency
+  }, [transactions, demoContext?.isRunning, currentUser?.id]);
 
-  // Demo effect for floating companion
   useEffect(() => {
     if (demoContext?.isRunning) {
       const step = demoContext.step;
@@ -97,7 +125,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
       setHasAlert(false);
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, interimTranscript]);
 
   const processInput = async (text: string) => {
     const lower = text.toLowerCase();
@@ -154,32 +182,180 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
       responseText = `I'll open the Incident Operations dashboard.`;
       action = { label: 'View Incidents', type: 'navigate', target: 'incidents' };
     }
-    else if (lower.includes('agent') || lower.includes('communication') || lower.includes('network')) {
-      responseText = `I will show you the Agent Bus where I collaborate with Merchant Agents.`;
+    else if (lower.includes('agent') || lower.includes('communication') || lower.includes('network') || lower.includes('bus')) {
+      responseText = `I will show you the Agent Bus where I collaborate with Counterparty Agents.`;
       action = { label: 'Open Agent Network', type: 'navigate', target: 'network' };
+    }
+    else if (lower.includes('check my payment to abc electronics') || lower.includes('five thousand rupee payment') || lower.includes('investigate')) {
+      const target = transactions.find((tx: any) => tx.id === 'TXN-VYR-5001');
+      if (target) {
+        responseText = `I'll investigate it now. I've contacted the recipient agent through the Agent Bus and I am analyzing the transaction.`;
+        action = { label: 'View Investigation', type: 'investigate', target: target.id };
+      } else {
+        responseText = `I could not find a high-risk transaction to investigate.`;
+      }
     }
     
     setContextTx(newContext);
     return { text: responseText, action, suggestions };
   };
 
-  const handleSend = async (text: string) => {
+  const handleSendText = async (text: string) => {
     if (!text.trim()) return;
-    const newMsgs = [...messages, { sender: 'user', type: 'text', text }];
+    const newMsgs = [...messagesRef.current, { sender: 'user', type: 'text', text }];
     setMessages(newMsgs);
     setInput('');
     
-    // Simulate thinking
     setTimeout(async () => {
       const response = await processInput(text);
       setMessages([...newMsgs, { sender: 'ai', type: 'text', ...response }]);
     }, 600);
   };
 
+  // --- VOICE LOGIC ---
+  const requestMicPermission = async () => {
+    setVoiceState("requesting_permission");
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      initSpeechRecognition();
+      setVoiceState("ready");
+      setErrorMessage("");
+    } catch (err) {
+      setVoiceState("error");
+      setErrorMessage("Microphone permission is blocked. Enable it in your browser settings to use voice.");
+    }
+  };
+
+  const initSpeechRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceState("error");
+      setErrorMessage("Voice input is not supported by this browser.");
+      return;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.onstart = () => {
+      setVoiceState("listening");
+    };
+    
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      setInterimTranscript(interim);
+      if (final) {
+        handleVoiceInput(final);
+      }
+    };
+    
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        setVoiceState("error");
+        setErrorMessage("Microphone permission is blocked.");
+      } else {
+        setVoiceState("ready");
+      }
+    };
+    
+    recognition.onend = () => {
+      if (voiceStateRef.current === "listening") {
+        if (continuousRef.current) {
+          try { recognitionRef.current.start(); } catch(e){}
+        } else {
+          setVoiceState("ready");
+        }
+      }
+    };
+    
+    recognitionRef.current = recognition;
+  };
+  
+  const startListening = () => {
+    if (!recognitionRef.current) {
+      initSpeechRecognition();
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+        setVoiceState("listening");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+  
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (voiceState === "listening" || voiceState === "ready") {
+       setVoiceState("ready");
+    }
+  };
+
+  const handleVoiceInput = async (text: string) => {
+    if (!text.trim()) return;
+    setInterimTranscript("");
+    
+    if (!continuousRef.current) {
+       stopListening();
+    }
+    
+    setVoiceState("processing");
+    const newMsgs = [...messagesRef.current, { sender: 'user', type: 'text', text }];
+    setMessages(newMsgs);
+    
+    const response = await processInput(text);
+    
+    setMessages([...newMsgs, { sender: 'ai', type: 'text', ...response }]);
+    
+    speakResponse(response.text);
+  };
+  
+  const speakResponse = (text: string) => {
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    setVoiceState("speaking");
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speechRate;
+    
+    utterance.onend = () => {
+      if (continuousRef.current) {
+        startListening();
+      } else {
+        setVoiceState("ready");
+      }
+    };
+    
+    utterance.onerror = () => {
+      setVoiceState("ready");
+    };
+    
+    synth.speak(utterance);
+  };
+  
+  const stopSpeaking = () => {
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    setVoiceState("ready");
+  };
+
   const executeAction = async (action: any) => {
     if (action.type === 'navigate') {
       onNavigate(action.target);
-      if (window.innerWidth < 768) setIsOpen(false); // Close on mobile navigation
+      if (window.innerWidth < 768) setIsOpen(false);
     } else if (action.type === 'investigate') {
       const res = await createIncident(action.target);
       onOpenIncident(res.incident_id);
@@ -207,6 +383,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
       {/* Panel */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-[90vw] md:w-[420px] h-[650px] max-h-[85vh] glass-panel rounded-2xl border border-slate-700/50 flex flex-col overflow-hidden z-50 shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-300">
+          
           {/* Header */}
           <div className="h-16 bg-slate-800/90 border-b border-primary/30 flex items-center justify-between px-5 shrink-0">
             <div className="flex items-center gap-3">
@@ -222,11 +399,102 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white p-1"><Minus className="w-5 h-5" /></button>
           </div>
 
-          {/* Privacy Indicator */}
-          <div className="bg-slate-900/80 py-1.5 flex justify-center border-b border-slate-700/50">
-            <span className="text-[9px] text-emerald-400 font-medium flex items-center gap-1 uppercase tracking-wider">
-               <ShieldCheck className="w-3 h-3" /> User Context Authorized
-            </span>
+          {/* Voice Controls Header Section */}
+          <div className="bg-slate-900/90 py-2 px-4 flex flex-col gap-2 border-b border-slate-700/50 relative z-10 shrink-0">
+             {voiceState === "disabled" && (
+                <div className="flex flex-col gap-2 p-3 bg-slate-800 rounded-lg border border-slate-700 items-center justify-center text-center">
+                   <div className="text-xs text-slate-200 font-bold tracking-wider">VIYORA VOICE</div>
+                   <div className="text-[10px] text-slate-400 mb-1">Talk naturally with your autonomous teammate.</div>
+                   <button onClick={requestMicPermission} className="bg-primary hover:bg-emerald-400 text-slate-900 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-primary/20 transition-colors">
+                     <Mic className="w-4 h-4" /> Enable Voice
+                   </button>
+                </div>
+             )}
+
+             {voiceState === "requesting_permission" && (
+                <div className="flex flex-col gap-2 p-3 bg-slate-800 rounded-lg border border-slate-700 items-center justify-center text-center">
+                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                   <div className="text-xs text-slate-300">Allow microphone access to talk to VIYORA.</div>
+                </div>
+             )}
+
+             {voiceState === "error" && (
+                <div className="flex flex-col gap-2 p-3 bg-danger/10 rounded-lg border border-danger/30 text-center">
+                   <div className="text-xs text-danger font-bold flex justify-center items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Error</div>
+                   <div className="text-[10px] text-slate-300">{errorMessage}</div>
+                   <button onClick={() => setVoiceState("disabled")} className="text-[10px] text-slate-400 hover:text-white underline mt-1">Dismiss</button>
+                </div>
+             )}
+
+             {voiceState !== "disabled" && voiceState !== "error" && voiceState !== "requesting_permission" && (
+                <div className="flex flex-col gap-2 w-full">
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-[9px] text-emerald-400 font-medium flex items-center gap-1 uppercase tracking-wider">
+                       <ShieldCheck className="w-3 h-3" /> Voice Context Authorized
+                    </span>
+                    <button onClick={() => setShowSettings(!showSettings)} className="text-slate-400 hover:text-white bg-slate-800 p-1 rounded border border-slate-700"><Settings2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                  
+                  {showSettings && (
+                     <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 text-xs mt-1 shadow-inner">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-300 font-bold">Speech Speed:</span>
+                          <select value={speechRate} onChange={e => setSpeechRate(parseFloat(e.target.value))} className="bg-slate-900 text-info outline-none p-1 rounded border border-slate-700">
+                             <option value={0.8}>0.8x</option>
+                             <option value={1.0}>1.0x</option>
+                             <option value={1.2}>1.2x</option>
+                          </select>
+                        </div>
+                     </div>
+                  )}
+
+                  <div className="flex justify-between items-center mt-1 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
+                     {/* Status indicator */}
+                     <div className="flex items-center gap-2">
+                        {voiceState === 'ready' && <span className="text-xs text-slate-400 font-bold flex items-center gap-1.5"><MicOff className="w-3.5 h-3.5" /> READY</span>}
+                        {voiceState === 'listening' && <span className="text-xs text-danger font-bold flex items-center gap-1.5 animate-pulse"><Mic className="w-3.5 h-3.5" /> LISTENING...</span>}
+                        {voiceState === 'processing' && <span className="text-xs text-info font-bold flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> THINKING...</span>}
+                        {voiceState === 'speaking' && <span className="text-xs text-primary font-bold flex items-center gap-1.5 animate-pulse">🔊 SPEAKING...</span>}
+                     </div>
+                     
+                     <div className="flex items-center gap-2">
+                        {voiceState === 'speaking' ? (
+                          <button onClick={stopSpeaking} className="bg-danger/20 hover:bg-danger/30 text-danger border border-danger/30 font-bold px-3 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-colors">
+                             <Square className="w-3 h-3 fill-current" /> STOP
+                          </button>
+                        ) : (
+                          <>
+                            {isContinuousMode ? (
+                              <button onClick={() => { setIsContinuousMode(false); stopListening(); }} className="bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20 font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors">
+                                END CONVERSATION
+                              </button>
+                            ) : (
+                              <>
+                                <button 
+                                  onMouseDown={startListening}
+                                  onMouseUp={stopListening}
+                                  onTouchStart={startListening}
+                                  onTouchEnd={stopListening}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 font-bold px-3 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-colors">
+                                   <Mic className="w-3 h-3" /> Hold to Talk
+                                </button>
+                                <button onClick={() => { setIsContinuousMode(true); startListening(); }} className="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors">
+                                   Conversation Mode
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                     </div>
+                  </div>
+                  
+                  {interimTranscript && (
+                     <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 mt-2 shadow-inner">
+                       <span className="text-xs text-slate-300 italic">"{interimTranscript}"</span>
+                     </div>
+                  )}
+                </div>
+             )}
           </div>
 
           {/* Messages / Activity Feed */}
@@ -282,7 +550,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
                       {m.suggestions && (
                         <div className="flex flex-col gap-1.5 mt-1">
                           {m.suggestions.map((s: string, j: number) => (
-                            <button key={j} onClick={() => handleSend(s)} className="text-left text-xs bg-slate-800/80 border border-slate-700 hover:border-primary/50 text-slate-300 p-2.5 rounded-lg transition-colors">
+                            <button key={j} onClick={() => handleSendText(s)} className="text-left text-xs bg-slate-800/80 border border-slate-700 hover:border-primary/50 text-slate-300 p-2.5 rounded-lg transition-colors">
                               {s}
                             </button>
                           ))}
@@ -297,18 +565,18 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-slate-800/90 border-t border-slate-700/50">
+          <div className="p-3 bg-slate-800/90 border-t border-slate-700/50 shrink-0">
             <div className="relative flex items-center">
               <input 
                 type="text" 
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend(input)}
+                onKeyDown={e => e.key === 'Enter' && handleSendText(input)}
                 placeholder="Give VIYORA a task..." 
                 className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-full py-3 pl-4 pr-12 outline-none focus:border-primary transition-colors text-sm"
               />
               <button 
-                onClick={() => handleSend(input)}
+                onClick={() => handleSendText(input)}
                 className="absolute right-1.5 w-9 h-9 bg-primary hover:bg-emerald-400 text-slate-900 rounded-full flex items-center justify-center transition-colors shadow-lg">
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
