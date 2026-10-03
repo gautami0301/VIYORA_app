@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { runInvestigation, fetchIncidentReport, resolveIncident } from '../api';
-import { Bot, Network, AlertTriangle, CheckCircle, Search, Server, ShieldCheck, Lock, User, Info, Loader2, ArrowRight, Activity, Shield } from 'lucide-react';
+import { Bot, Network, AlertTriangle, CheckCircle, Server, ShieldCheck, User, Loader2, Activity, Shield, CheckCircle2 } from 'lucide-react';
 
 export default function AgentConsole({ incidentId, onBack, demoContext }: { incidentId: string, onBack: () => void, demoContext?: any }) {
   const [report, setReport] = useState<any>(null);
@@ -49,8 +49,7 @@ export default function AgentConsole({ incidentId, onBack, demoContext }: { inci
 
   if (!report) return <div className="p-8 flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
 
-  const { incident, transaction } = report;
-  const isHighRisk = transaction?.risk === 'HIGH';
+  const { transaction } = report;
 
   return (
     <div className="flex h-full w-full">

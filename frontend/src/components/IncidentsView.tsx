@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle, ChevronRight } from 'lucide-react';
 
 export default function IncidentsView({ incidents, currentUser, onOpenIncident, demoContext }: any) {
@@ -17,7 +16,7 @@ export default function IncidentsView({ incidents, currentUser, onOpenIncident, 
         {incidents.length === 0 && !demoContext?.isRunning && <div className="text-slate-500">No active incidents.</div>}
         
         {/* Inject demo incident if running or present */}
-        {(demoContext?.isRunning || incidents.find(i => i.id === 'INC-VYR-5001')) && (
+        {(demoContext?.isRunning || incidents.find((i: any) => i.id === 'INC-VYR-5001')) && (
           <div className="glass p-6 rounded-xl border border-warning/50 flex justify-between items-center hover:border-warning transition-colors bg-warning/5">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -40,7 +39,7 @@ export default function IncidentsView({ incidents, currentUser, onOpenIncident, 
           </div>
         )}
 
-        {incidents.filter(i => i.id !== 'INC-VYR-5001').map((inc: any) => (
+        {incidents.filter((i: any) => i.id !== 'INC-VYR-5001').map((inc: any) => (
           <div key={inc.id} className="glass p-6 rounded-xl border border-slate-700/50 flex justify-between items-center hover:border-slate-500 transition-colors">
             <div>
               <div className="flex items-center gap-3 mb-2">

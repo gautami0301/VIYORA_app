@@ -1,5 +1,4 @@
-import React from 'react';
-import { BarChart3, TrendingUp, CreditCard, ShoppingBag, Coffee, Car } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingBag, Coffee, Car } from 'lucide-react';
 
 export default function InsightsView({ transactions, currentUser }: any) {
   const isCustomer = currentUser?.role === 'CUSTOMER';

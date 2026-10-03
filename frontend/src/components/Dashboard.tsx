@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchTransactions, createIncident } from '../api';
 import { ShieldAlert, CheckCircle2, Clock, PlayCircle } from 'lucide-react';
 

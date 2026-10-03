@@ -1,5 +1,4 @@
-import React from 'react';
-import { Activity, CheckCircle2, ShieldAlert, Clock, Bot, ExternalLink } from 'lucide-react';
+import { Activity, CheckCircle2, ShieldAlert, Clock, Bot } from 'lucide-react';
 import { createIncident } from '../api';
 
 export default function TransactionsView({ transactions, onOpenIncident, currentUser }: any) {

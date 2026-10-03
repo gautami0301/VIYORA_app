@@ -1,5 +1,4 @@
-import React from 'react';
-import { Bot, Send, AlertTriangle, ChevronRight, Activity, FileText, CheckCircle2, ShieldAlert, Clock, ArrowRight, Server, ShieldCheck, PlayCircle, Loader2, Search, ArrowRightLeft, Network } from 'lucide-react';
+import { Bot, AlertTriangle, Activity, CheckCircle2, ShieldAlert, Clock, ArrowRight, Server, ShieldCheck, Loader2, Search, ArrowRightLeft, Network } from 'lucide-react';
 import { createIncident } from '../api';
 
 export default function HomeView({ transactions, incidents, onOpenIncident, onNavigate, demoContext, currentUser }: any) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { FolderLock, Lock, CheckCircle2 } from 'lucide-react';
 
 export default function EvidenceView({ demoContext, currentUser }: any) {

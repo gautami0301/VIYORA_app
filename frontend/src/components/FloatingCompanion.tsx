@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bot, X, Send, AlertTriangle, Minus, ArrowRight, ChevronDown, CheckCircle2, Loader2, ShieldCheck, Mic, MicOff, Settings2, Square } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bot, Send, AlertTriangle, Minus, ArrowRight, ChevronDown, CheckCircle2, Loader2, ShieldCheck, Mic, MicOff, Settings2, Square } from 'lucide-react';
 import { createIncident } from '../api';
 
 type VoiceState = "disabled" | "requesting_permission" | "ready" | "listening" | "processing" | "speaking" | "error";
@@ -131,7 +131,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
     const lower = text.toLowerCase();
     let responseText = "I can fetch transaction data or run an investigation on a specific payment. What would you like me to do?";
     let action = null;
-    let suggestions = [];
+    let suggestions: string[] = [];
     let newContext = contextTx;
 
     if (lower.includes('spend') && (lower.includes('today') || lower.includes('this week') || lower.includes('how much'))) {
@@ -227,7 +227,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
   };
 
   const initSpeechRecognition = () => {
-    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setVoiceState("error");
       setErrorMessage("Voice input is not supported by this browser.");

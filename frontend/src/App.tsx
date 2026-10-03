@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Bot, Search, FileText, Bell, Send, User, ChevronRight, Activity, ShieldCheck, AlertTriangle, Home, BarChart3, Network, FolderLock, Shield, Settings, FileBarChart, Gamepad2, PlayCircle, Loader2, Users } from 'lucide-react';
-import { fetchTransactions, createIncident } from './api';
+import { useState, useEffect } from 'react';
+import { Bot, Bell, User, ChevronRight, Activity, ShieldCheck, AlertTriangle, Home, BarChart3, Network, FolderLock, Shield, FileBarChart, Gamepad2, PlayCircle, Loader2, Users } from 'lucide-react';
 import { store, USERS } from './store';
 import AgentConsole from './components/AgentConsole';
 import HomeView from './components/HomeView';

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Network, Server, Bot, ArrowRightLeft, ShieldCheck, AlertTriangle, Shield, CheckCircle2, ChevronRight, Activity, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Network, Server, Bot, ArrowRightLeft, ShieldCheck, AlertTriangle, Shield, CheckCircle2, ChevronRight, Activity, Search, Loader2 } from 'lucide-react';
 
 export default function AgentNetworkView({ transactions, demoContext, currentUser }: any) {
   const [selectedTxId, setSelectedTxId] = useState<string>('TXN-VYR-5001');

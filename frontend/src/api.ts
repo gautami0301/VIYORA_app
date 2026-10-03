@@ -1,5 +1,4 @@
 import { store } from './store';
-import type { Incident, Transaction } from './store';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -32,7 +31,7 @@ export async function createIncident(transactionId: string) {
 
 export async function runInvestigation(incidentId: string) {
   await delay(500);
-  return { status: 'investigated' };
+  return { status: 'investigated', incidentId };
 }
 
 export async function resolveIncident(incidentId: string) {

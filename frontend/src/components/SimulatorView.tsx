@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Gamepad2, PlayCircle, RefreshCw } from 'lucide-react';
-import { createIncident } from '../api';
 
 export default function SimulatorView({ onRefresh }: { onRefresh: () => void }) {
   const [loading, setLoading] = useState(false);
