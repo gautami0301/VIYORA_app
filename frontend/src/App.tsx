@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Bell, User, ChevronRight, Activity, ShieldCheck, AlertTriangle, Home, BarChart3, Network, FolderLock, Shield, FileBarChart, Gamepad2, PlayCircle, Loader2, Users } from 'lucide-react';
+import { Bot, Bell, User, Activity, ShieldCheck, AlertTriangle, Home, BarChart3, Network, FolderLock, Shield, FileBarChart, Gamepad2, PlayCircle, Loader2, Users } from 'lucide-react';
 import { store, USERS } from './store';
 import AgentConsole from './components/AgentConsole';
 import HomeView from './components/HomeView';
@@ -12,6 +12,7 @@ import SecurityView from './components/SecurityView';
 import ReportsView from './components/ReportsView';
 import SimulatorView from './components/SimulatorView';
 import FloatingCompanion from './components/FloatingCompanion';
+import MerchantConnectionsView from './components/MerchantConnectionsView';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<string>('home');
@@ -137,22 +138,25 @@ export default function App() {
     setActiveIncident(id);
   };
 
+  const currentUserData = Object.values(USERS).find(u => u.id === currentUserId) || USERS.RAHUL;
+
   const renderView = () => {
     if (activeIncident) {
       return <AgentConsole incidentId={activeIncident} onBack={() => setActiveIncident(null)} demoContext={demoState} />;
     }
     switch (currentView) {
-      case 'home': return <HomeView transactions={transactions} incidents={incidents} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} onOpenIncident={handleOpenIncident} onNavigate={navigate} demoContext={demoState} />;
+      case 'home': return <HomeView transactions={transactions} incidents={incidents} currentUser={currentUserData} onOpenIncident={handleOpenIncident} onNavigate={navigate} demoContext={demoState} />;
       case 'agent': return <AgentConsole incidentId="demo" onBack={() => navigate('home')} demoContext={demoState} />;
-      case 'transactions': return <TransactionsView transactions={transactions} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} onOpenIncident={handleOpenIncident} />;
-      case 'insights': return <InsightsView transactions={transactions} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} />;
-      case 'incidents': return <IncidentsView incidents={incidents} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} onOpenIncident={handleOpenIncident} demoContext={demoState} />;
-      case 'network': return <AgentNetworkView transactions={store.transactions} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} demoContext={demoState} />;
-      case 'evidence': return <EvidenceView demoContext={demoState} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} />;
-      case 'security': return <SecurityView currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} />;
-      case 'reports': return <ReportsView currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} transactions={transactions} incidents={incidents} />;
+      case 'transactions': return <TransactionsView transactions={transactions} currentUser={currentUserData} onOpenIncident={handleOpenIncident} />;
+      case 'insights': return <InsightsView transactions={transactions} currentUser={currentUserData} />;
+      case 'incidents': return <IncidentsView incidents={incidents} currentUser={currentUserData} onOpenIncident={handleOpenIncident} demoContext={demoState} />;
+      case 'network': return <AgentNetworkView transactions={store.transactions} currentUser={currentUserData} demoContext={demoState} />;
+      case 'merchant-connections': return <MerchantConnectionsView currentUser={currentUserData} />;
+      case 'evidence': return <EvidenceView demoContext={demoState} currentUser={currentUserData} />;
+      case 'security': return <SecurityView currentUser={currentUserData} />;
+      case 'reports': return <ReportsView currentUser={currentUserData} transactions={transactions} incidents={incidents} />;
       case 'simulator': return <SimulatorView onRefresh={() => {}} />;
-      default: return <HomeView transactions={transactions} incidents={incidents} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} onOpenIncident={handleOpenIncident} onNavigate={navigate} demoContext={demoState} />;
+      default: return <HomeView transactions={transactions} incidents={incidents} currentUser={currentUserData} onOpenIncident={handleOpenIncident} onNavigate={navigate} demoContext={demoState} />;
     }
   };
 
@@ -170,62 +174,58 @@ export default function App() {
   };
 
   if (showSelector) {
+    const parents = Object.values(USERS).filter(u => u.role === 'PARENT_AGENT');
+    const customers = Object.values(USERS).filter(u => u.role === 'CUSTOMER');
+    const merchants = Object.values(USERS).filter(u => u.role === 'MERCHANT');
+
     return (
       <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800/40 via-slate-900 to-slate-950 overflow-y-auto">
-        <div className="flex flex-col items-center mb-12 text-center animate-in slide-in-from-bottom-5 fade-in duration-500">
+        <div className="flex flex-col items-center mb-12 text-center animate-in slide-in-from-bottom-5 fade-in duration-500 mt-10">
           <div className="flex items-center justify-center bg-slate-900 p-4 rounded-2xl border border-primary/30 shadow-2xl shadow-primary/20 mb-6">
             <ShieldCheck className="w-12 h-12 text-primary" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">VIYORA</h1>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">VIEW MODE</h1>
           <p className="text-lg text-slate-400 max-w-lg font-light tracking-wide">
-            Agent-to-Agent Financial Resolution Network
+            Select a workspace to enter.
           </p>
-          <div className="mt-8 px-6 py-2 bg-slate-800/50 rounded-full border border-slate-700/50 text-sm font-medium text-slate-300">
-            Choose a participant to enter their VIYORA workspace.
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl animate-in slide-in-from-bottom-10 fade-in duration-700 delay-150">
-          {/* Card 1: Rahul */}
-          <div 
-            onClick={() => { setCurrentUserId('USER-RAHUL-001'); navigate('home'); setShowSelector(false); }}
-            className="group relative bg-slate-800/40 hover:bg-slate-800 border border-slate-700 hover:border-primary/50 p-8 rounded-3xl cursor-pointer transition-all duration-300 shadow-xl hover:shadow-primary/10 overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary group-hover:scale-110 transition-transform duration-300">
-                <User className="w-8 h-8" />
+        <div className="w-full max-w-6xl animate-in slide-in-from-bottom-10 fade-in duration-700 delay-150 mb-20">
+          
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 text-center">PARENT</h3>
+          <div className="flex justify-center mb-12">
+            {parents.map(p => (
+              <div key={p.id} onClick={() => { setCurrentUserId(p.id); navigate('home'); setShowSelector(false); }} className="w-full max-w-md group relative bg-slate-800/60 hover:bg-slate-800 border-2 border-primary/50 hover:border-primary p-6 rounded-2xl cursor-pointer transition-all shadow-xl hover:shadow-primary/20 overflow-hidden text-center">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <ShieldCheck className="w-8 h-8 text-primary mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-white mb-1">VIYORA Control Center</h2>
+                <p className="text-sm text-slate-400">System-wide financial intelligence</p>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-full border border-slate-700 shadow-inner">Customer</span>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Rahul</h2>
-            <p className="text-slate-400 mb-8 font-light">Personal Financial Workspace</p>
-            <div className="flex items-center justify-between mt-auto">
-              <span className="text-sm font-medium text-primary flex items-center gap-2">
-                Open Rahul's VIYORA <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </div>
+            ))}
           </div>
 
-          {/* Card 2: ABC Electronics */}
-          <div 
-            onClick={() => { setCurrentUserId('USER-ABC-001'); navigate('home'); setShowSelector(false); }}
-            className="group relative bg-slate-800/40 hover:bg-slate-800 border border-slate-700 hover:border-warning/50 p-8 rounded-3xl cursor-pointer transition-all duration-300 shadow-xl hover:shadow-warning/10 overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-warning to-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center border border-warning/20 text-warning group-hover:scale-110 transition-transform duration-300">
-                <Home className="w-8 h-8" />
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 text-center">Users</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            {customers.map(c => (
+              <div key={c.id} onClick={() => { setCurrentUserId(c.id); navigate('home'); setShowSelector(false); }} className="group relative bg-slate-800/40 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 p-6 rounded-2xl cursor-pointer transition-all shadow-xl hover:shadow-emerald-500/10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <User className="w-6 h-6 text-emerald-400 mb-4" />
+                <h2 className="text-lg font-bold text-white mb-1">{c.name}</h2>
+                <p className="text-xs text-slate-400">My VIYORA</p>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-full border border-slate-700 shadow-inner">Merchant</span>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">ABC Electronics</h2>
-            <p className="text-slate-400 mb-8 font-light">Merchant Financial Workspace</p>
-            <div className="flex items-center justify-between mt-auto">
-              <span className="text-sm font-medium text-warning flex items-center gap-2">
-                Open ABC's VIYORA <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </div>
+            ))}
+          </div>
+
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 text-center">Merchants</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {merchants.map(m => (
+              <div key={m.id} onClick={() => { setCurrentUserId(m.id); navigate('home'); setShowSelector(false); }} className="group relative bg-slate-800/40 hover:bg-slate-800 border border-slate-700 hover:border-warning/50 p-6 rounded-2xl cursor-pointer transition-all shadow-xl hover:shadow-warning/10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-warning to-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <Home className="w-6 h-6 text-warning mb-4" />
+                <h2 className="text-lg font-bold text-white mb-1">{m.name}</h2>
+                <p className="text-xs text-slate-400">Merchant Agent</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -240,28 +240,47 @@ export default function App() {
           <ShieldCheck className="w-8 h-8 flex-shrink-0" />
           <div className="hidden md:block">
             <h1 className="text-xl font-bold tracking-wider leading-none">VIYORA</h1>
-            <p className="text-[10px] text-slate-400 mt-1">{USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC'].name}'s Agent</p>
+            <p className="text-[10px] text-slate-400 mt-1">{currentUserData?.role === 'PARENT_AGENT' ? 'Control Center' : `${currentUserData?.name}'s Workspace`}</p>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
           <div className="space-y-1 px-2">
-            <NavItem id="home" icon={Home} label="Home" />
-            <NavItem id="agent" icon={Bot} label="AI Agent" />
-            <NavItem id="transactions" icon={Activity} label="Transactions" />
-            <NavItem id="insights" icon={BarChart3} label="Insights" />
+            {currentUserData?.role === 'PARENT_AGENT' ? (
+              <>
+                <NavItem id="home" icon={Home} label="Home" />
+                <NavItem id="agent" icon={Bot} label="AI Agent" />
+                <NavItem id="transactions" icon={Activity} label="Transactions" />
+                <NavItem id="insights" icon={BarChart3} label="Insights" />
 
-            <NavItem section label="Operations" />
-            <NavItem id="incidents" icon={AlertTriangle} label="Incidents" />
-            <NavItem id="network" icon={Network} label="Agent Network" />
-            <NavItem id="evidence" icon={FolderLock} label="Evidence Vault" />
+                <NavItem section label="Operations" />
+                <NavItem id="incidents" icon={AlertTriangle} label="Incidents" />
+                <NavItem id="network" icon={Network} label="Agent Network" />
+                <NavItem id="evidence" icon={FolderLock} label="Evidence Vault" />
 
-            <NavItem section label="Security" />
-            <NavItem id="security" icon={Shield} label="Security & Privacy" />
+                <NavItem section label="Security" />
+                <NavItem id="security" icon={Shield} label="Security & Privacy" />
 
-            <NavItem section label="System" />
-            <NavItem id="reports" icon={FileBarChart} label="Reports" />
-            <NavItem id="simulator" icon={Gamepad2} label="Simulator" />
+                <NavItem section label="System" />
+                <NavItem id="reports" icon={FileBarChart} label="Reports" />
+                <NavItem id="simulator" icon={Gamepad2} label="Simulator" />
+              </>
+            ) : (
+              <>
+                <NavItem id="home" icon={Home} label="My Home" />
+                <NavItem id="agent" icon={Bot} label="My AI Agent" />
+                <NavItem id="transactions" icon={Activity} label="My Transactions" />
+                <NavItem id="insights" icon={BarChart3} label="My Insights" />
+                <NavItem id="incidents" icon={AlertTriangle} label="My Incidents" />
+                <NavItem id="merchant-connections" icon={Network} label="Merchant Connections" />
+                
+                <NavItem section label="Security" />
+                <NavItem id="security" icon={Shield} label="Security & Privacy" />
+                
+                <NavItem section label="System" />
+                <NavItem id="reports" icon={FileBarChart} label="My Reports" />
+              </>
+            )}
           </div>
         </div>
 
@@ -306,9 +325,9 @@ export default function App() {
             </button>
             <Bell className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-300 font-medium hidden sm:block">{USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC'].name}</span>
+              <span className="text-sm text-slate-300 font-medium hidden sm:block">{currentUserData.name}</span>
               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold border border-slate-600">
-                {(USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC'].name).charAt(0)}
+                {(currentUserData.name).charAt(0)}
               </div>
             </div>
           </div>
@@ -321,7 +340,7 @@ export default function App() {
       </div>
 
       {/* Persistent Floating AI Companion */}
-      <FloatingCompanion transactions={transactions} currentUser={USERS[currentUserId === 'USER-RAHUL-001' ? 'RAHUL' : 'ABC']} onNavigate={navigate} onOpenIncident={handleOpenIncident} demoContext={demoState} />
+      <FloatingCompanion transactions={transactions} currentUser={currentUserData} onNavigate={navigate} onOpenIncident={handleOpenIncident} demoContext={demoState} />
     </div>
   );
 }

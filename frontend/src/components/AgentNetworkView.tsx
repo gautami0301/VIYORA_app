@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Network, Server, Bot, ArrowRightLeft, ShieldCheck, AlertTriangle, Shield, CheckCircle2, ChevronRight, Activity, Search, Loader2 } from 'lucide-react';
+import { store, USERS } from '../store';
 
 export default function AgentNetworkView({ transactions, demoContext, currentUser }: any) {
   const [selectedTxId, setSelectedTxId] = useState<string>('TXN-VYR-5001');
@@ -16,8 +17,15 @@ export default function AgentNetworkView({ transactions, demoContext, currentUse
   };
 
   const isHighRisk = tx.risk === 'HIGH';
-  const customerName = tx.senderId === 'USER-RAHUL-001' ? 'Rahul' : 'Customer';
-  const merchantName = tx.recipientId === 'USER-ABC-001' ? 'ABC Electronics' : 'Merchant';
+  
+  const customerUser = Object.values(USERS).find(u => u.id === tx.senderId);
+  const merchantUser = Object.values(USERS).find(u => u.id === tx.recipientId);
+  
+  const customerName = customerUser?.name || 'Customer';
+  const merchantName = merchantUser?.name || 'Merchant';
+
+  const connections = store.getConnections(tx.senderId);
+  const isAuthorized = connections.find((c: any) => c.merchantId === tx.recipientId)?.authorized ?? false;
 
   // Computed state for demo logic based on transaction
   let debitStatus = tx.gatewayStatus === 'FAILED' ? 'NOT_DEBITED' : 'DEBITED';
@@ -135,15 +143,21 @@ export default function AgentNetworkView({ transactions, demoContext, currentUse
           <div className="flex-1 px-4 relative h-64 flex flex-col items-center justify-center">
             {/* Arrows */}
             <div className="absolute inset-x-4 top-[40%] h-0.5 bg-slate-700">
-               <div className="h-full bg-slate-500 w-[50%] animate-pulse"></div>
+               {isAuthorized && <div className="h-full bg-slate-500 w-[50%] animate-pulse"></div>}
             </div>
             
             {/* Bus Core */}
-            <div className={`bg-slate-900 border ${demoContext?.isRunning && demoContext.step >= 4 && demoContext.step <= 7 ? 'border-primary shadow-primary/20' : 'border-slate-600'} px-6 py-4 rounded-lg text-xs font-mono font-bold text-slate-300 flex flex-col items-center z-10 relative shadow-2xl w-full max-w-xs transition-colors`}>
-              <ArrowRightLeft className={`w-6 h-6 mb-2 ${demoContext?.isRunning && demoContext.step >= 4 && demoContext.step <= 7 ? 'text-primary' : 'text-slate-400'}`} />
+            <div className={`bg-slate-900 border ${!isAuthorized ? 'border-danger shadow-danger/20' : demoContext?.isRunning && demoContext.step >= 4 && demoContext.step <= 7 ? 'border-primary shadow-primary/20' : 'border-slate-600'} px-6 py-4 rounded-lg text-xs font-mono font-bold text-slate-300 flex flex-col items-center z-10 relative shadow-2xl w-full max-w-xs transition-colors`}>
+              <ArrowRightLeft className={`w-6 h-6 mb-2 ${!isAuthorized ? 'text-danger' : demoContext?.isRunning && demoContext.step >= 4 && demoContext.step <= 7 ? 'text-primary' : 'text-slate-400'}`} />
               AGENT BUS
               <div className="w-full mt-3 space-y-2 h-24 overflow-y-auto custom-scrollbar flex flex-col justify-end">
-                {demoContext?.isRunning && tx.id === 'TXN-VYR-5001' ? (
+                {!isAuthorized ? (
+                   <div className="bg-danger/10 p-2 rounded text-[9px] border border-danger/30 flex flex-col items-center justify-center h-full text-center">
+                     <AlertTriangle className="w-4 h-4 text-danger mb-1" />
+                     <span className="text-danger">CONNECTION UNAUTHORIZED</span>
+                     <span className="text-slate-400">Cannot exchange evidence</span>
+                   </div>
+                ) : demoContext?.isRunning && tx.id === 'TXN-VYR-5001' ? (
                   demoContext.agentMessages.map((m: any, i: number) => (
                     <div key={i} className="bg-slate-800 p-2 rounded text-[9px] border border-slate-700 flex flex-col animate-in fade-in slide-in-from-bottom-2">
                        <span className={`${m.sender === 'AGENT BUS' ? 'text-primary' : m.sender === 'AGENT 1' ? 'text-info' : 'text-warning'} mb-1`}>{m.sender}</span>
@@ -167,18 +181,26 @@ export default function AgentNetworkView({ transactions, demoContext, currentUse
 
             {/* Privacy Badges */}
             <div className="mt-4 flex flex-wrap justify-center gap-2 z-10 max-w-sm">
-              <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Privacy Boundary Enforced
-              </span>
-              <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Minimum Evidence Exchange
-              </span>
-              <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Agent Identity Verified
-              </span>
-              <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Transaction Scope Enforced
-              </span>
+              {!isAuthorized ? (
+                <span className="text-[10px] text-danger border border-danger/30 bg-danger/10 px-2 py-0.5 rounded flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> Authorization Required
+                </span>
+              ) : (
+                <>
+                  <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Privacy Boundary Enforced
+                  </span>
+                  <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Minimum Evidence Exchange
+                  </span>
+                  <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Agent Identity Verified
+                  </span>
+                  <span className="text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Transaction Scope Enforced
+                  </span>
+                </>
+              )}
             </div>
           </div>
 

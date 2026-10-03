@@ -1,4 +1,4 @@
-import { store } from './store';
+import { store, USERS } from './store';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -45,12 +45,17 @@ export async function fetchIncidentReport(incidentId: string) {
   const incident = store.incidents.find(i => i.id === incidentId);
   const transaction = store.transactions.find(t => t.id === incident?.transactionId);
   
+  const getUserName = (id: string) => {
+    const userKey = Object.keys(USERS).find(k => USERS[k].id === id);
+    return userKey ? USERS[userKey].name : 'Unknown';
+  };
+  
   return {
     incident,
     transaction: transaction ? {
       ...transaction,
-      customer: transaction.senderId === 'USER-RAHUL-001' ? 'Rahul' : 'Customer',
-      recipient: transaction.recipientId === 'USER-ABC-001' ? 'ABC Electronics' : 'Merchant'
+      customer: getUserName(transaction.senderId),
+      recipient: getUserName(transaction.recipientId)
     } : null,
     events: [
       { type: 'SYSTEM', message: `Incident ${incidentId} opened.` },

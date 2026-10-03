@@ -126,13 +126,14 @@ export default function AgentConsole({ incidentId, onBack, demoContext }: { inci
                   <div className="text-xs font-bold text-info uppercase tracking-wider mb-1">STEP 2-4 — INVESTIGATE & VERIFY</div>
                   <h4 className="text-sm font-bold text-white mb-2">Cross-Agent Verification in progress...</h4>
                   <div className="space-y-3 mt-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> {transaction?.customer} AI Agent analyzing {transaction?.id}.</div>
                     <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Checking {transaction?.customer}'s transaction context.</div>
-                    {stage >= 2 && <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Requesting recipient-side verification.</div>}
-                    {stage >= 2 && <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Scoped verification request sent to {transaction?.recipient} Agent over Agent Bus.</div>}
+                    {stage >= 2 && <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Requesting verification from {transaction?.recipient} AI Agent.</div>}
+                    {stage >= 2 && <div className="flex items-center gap-2 text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Scoped verification request sent through Agent Bus.</div>}
                     
                     {stage >= 3 && (
                       <div className="bg-slate-900/80 p-4 rounded-lg border border-slate-700 mt-2">
-                        <div className="text-xs text-slate-500 font-mono mb-2">EVIDENCE RECEIVED FROM RECIPIENT AGENT:</div>
+                        <div className="text-xs text-slate-500 font-mono mb-2">EVIDENCE RECEIVED FROM {transaction?.recipient?.toUpperCase()} AI AGENT:</div>
                         <ul className="text-sm font-mono text-warning space-y-1 ml-2">
                           <li>- Transaction not found.</li>
                           <li>- Receipt not received.</li>

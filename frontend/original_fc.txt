@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Bot, Send, AlertTriangle, Minus, ArrowRight, ChevronDown, CheckCircle2, Loader2, ShieldCheck, Mic, MicOff, Settings2, Square } from 'lucide-react';
 import { createIncident } from '../api';
-import { USERS } from '../store';
+
 type VoiceState = "disabled" | "requesting_permission" | "ready" | "listening" | "processing" | "speaking" | "error";
 
-export default function FloatingCompanion({ transactions, currentUser, onNavigate, onOpenIncident }: any) {
+export default function FloatingCompanion({ transactions, currentUser, onNavigate, onOpenIncident, demoContext }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -29,17 +29,16 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
   useEffect(() => { voiceStateRef.current = voiceState; }, [voiceState]);
   useEffect(() => { continuousRef.current = isContinuousMode; }, [isContinuousMode]);
 
+  const problemTx = transactions?.find((tx: any) => tx.id === 'TXN-VYR-5001' || tx.risk === 'HIGH');
   const [hasAlert, setHasAlert] = useState(false);
   const isCustomer = currentUser?.role === 'CUSTOMER';
   const customerName = currentUser?.name || 'User';
 
   const getRecipientName = (tx: any) => {
     if (isCustomer) {
-       const userKey = Object.keys(USERS).find(k => USERS[k].id === tx.recipientId);
-       return userKey ? USERS[userKey].name : 'Merchant';
+       return tx.recipientId === 'USER-ABC-001' ? 'ABC Electronics' : 'Merchant';
     } else {
-       const userKey = Object.keys(USERS).find(k => USERS[k].id === tx.senderId);
-       return userKey ? USERS[userKey].name : 'Customer';
+       return tx.senderId === 'USER-RAHUL-001' ? 'Rahul' : 'Customer';
     }
   };
 
@@ -53,45 +52,73 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (messages.length === 0) {
-      if (currentUser?.role === 'CUSTOMER') {
-        const txCount = transactions?.length || 0;
-        const incidentCount = transactions?.filter((t:any) => t.risk === 'HIGH' || t.incidentId).length || 0;
-        const merchantCount = Object.keys(transactions?.reduce((acc:any, tx:any) => {
-          if (tx.recipientId) acc[tx.recipientId] = true;
-          return acc;
-        }, {}) || {}).length;
+    if (problemTx && messages.length === 0) {
+      setHasAlert(true);
+      setMessages([
+        {
+          sender: 'ai',
+          type: 'activity',
+          task: `Investigating Γé╣${problemTx.amount.toLocaleString()} payment`,
+          status: 'Investigating',
+          activities: [
+            'Transaction identified',
+            'Sender-side evidence checked',
+            'Recipient verification requested',
+            'Agent Bus response received',
+            'Payment state compared',
+            'Retry safety policy applied',
+            'Reconciliation initiated'
+          ],
+          nextAction: 'Monitoring transaction',
+          targetId: problemTx.id
+        },
+        {
+          sender: 'ai',
+          type: 'text',
+          text: `Hi ${customerName}, I am actively handling a payment anomaly with ${problemTx ? getRecipientName(problemTx) : 'the counterparty'}.\n\nBoth sides indicate the payment has not reached a final state. I have blocked any unsafe retries to prevent duplicate charges and initiated reconciliation.`,
+          action: { label: 'Open Investigation', type: 'investigate', target: problemTx?.id }
+        }
+      ]);
+    } else if (!demoContext?.isRunning && messages.length === 0) {
+      setMessages([
+        {
+          sender: 'ai',
+          type: 'text',
+          text: `Hi ${customerName}, I am your Autonomous Financial Teammate. I am actively monitoring your transactions in the background.\n\nAll systems are normal right now. Let me know if you need any specific data.`,
+          suggestions: ["Show my recent payments", "How much did I spend this week?", "Check for duplicate payments"]
+        }
+      ]);
+    }
+  }, [transactions, demoContext?.isRunning, currentUser?.id]);
 
-        setMessages([
-          {
-            sender: 'ai',
-            type: 'text',
-            text: `### **${customerName.toUpperCase()}'S AI AGENT**\n● Active\n\nHi ${customerName}, I'm your personal VIYORA financial agent.\n\n**My current overview**\nTransactions: ${txCount}\nActive incidents: ${incidentCount}\nConnected merchants: ${merchantCount}\n\nAsk me about a payment, merchant, risk, spending pattern, or incident.`,
-            suggestions: ["Why did my payment fail?", "How are my payments?", "Do I have any risky payments?"]
-          }
-        ]);
-      } else if (currentUser?.role === 'MERCHANT') {
-        const txCount = transactions?.length || 0;
-        setMessages([
-          {
-            sender: 'ai',
-            type: 'text',
-            text: `### **${customerName.toUpperCase()} AI AGENT**\n● Active\n\nHi, I'm the ${customerName} merchant agent.\n\n**My current overview**\nTransactions monitored: ${txCount}\n\nI'm monitoring transaction statuses and resolving customer disputes securely over the Agent Bus.`,
-            suggestions: ["Show recent failed orders", "Verify payment status"]
-          }
-        ]);
-      } else {
-        setMessages([
-          {
-            sender: 'ai',
-            type: 'text',
-            text: `### **VIYORA GLOBAL AGENT**\n● Active\n\nHi, I am your Autonomous Financial Teammate. All systems normal.`,
-            suggestions: ["System status", "Check active incidents"]
-          }
-        ]);
+  useEffect(() => {
+    if (demoContext?.isRunning) {
+      const step = demoContext.step;
+      if (step === 1 && !isOpen) setIsOpen(true);
+      
+      const newMsgs = [...messages];
+      
+      if (step === 1) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "ΓÜí I detected an inconsistency in your Γé╣5,000 payment." });
+      } else if (step === 2) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "I am checking your transaction history." });
+      } else if (step === 4) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "I've contacted the recipient's VIYORA Agent over the Agent Bus." });
+      } else if (step === 6) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "The recipient agent reports that the payment was not received." });
+      } else if (step === 9) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "I'm blocking a duplicate retry while I reconcile the transaction." });
+      } else if (step === 11) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "Reconciliation completed." });
+      } else if (step === 12) {
+        newMsgs.push({ sender: 'ai', type: 'text', text: "The payment is now verified. Incident resolved autonomously." });
+      }
+
+      if (newMsgs.length > messages.length) {
+        setMessages(newMsgs);
       }
     }
-  }, [transactions, currentUser?.id]);
+  }, [demoContext?.step]);
 
   useEffect(() => {
     if (isOpen) {
@@ -102,173 +129,75 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
 
   const processInput = async (text: string) => {
     const lower = text.toLowerCase();
+    let responseText = "I can fetch transaction data or run an investigation on a specific payment. What would you like me to do?";
+    let action = null;
     let suggestions: string[] = [];
     let newContext = contextTx;
 
-    // Detect unauthorized merchant queries
-    if (lower.includes('amazon') && currentUser?.name === 'Priya') {
-      return { text: `Amazon isn't currently an authorized merchant connection for your VIYORA agent, so I can't request merchant-side evidence.` };
-    }
-
-    if (lower.includes('retry it') && contextTx) {
-      if (contextTx.recipientId === 'USER-ZOMATO-001') {
-        return { type: 'text', text: `I have blocked an immediate retry for ${contextTx.id}. Please wait for reconciliation. Would you like me to check your recent Zomato transactions for similar issues?` };
-      } else {
-        return { type: 'text', text: `You can safely retry ${contextTx.id}. I have verified with the merchant agent that there is no duplicate order.` };
+    if (lower.includes('spend') && (lower.includes('today') || lower.includes('this week') || lower.includes('how much'))) {
+      const total = transactions.reduce((sum: number, tx: any) => sum + tx.amount, 0);
+      const largest = [...transactions].sort((a: any, b: any) => b.amount - a.amount)[0];
+      responseText = `I calculated your recent ${isCustomer ? 'spending' : 'income'}: Γé╣${total.toLocaleString()}.\n\nYour largest transaction was Γé╣${largest.amount.toLocaleString()} ${isCustomer ? 'to' : 'from'} ${getRecipientName(largest)}.`;
+      if (largest.risk === 'HIGH') {
+        responseText += `\n\nNote: I am already autonomously investigating this high-risk transaction.`;
+        action = { label: `View Investigation`, type: 'investigate', target: largest.id };
+      }
+      newContext = largest;
+    } 
+    else if (lower.includes('why hasn\'t') || (lower.includes('payment') && lower.includes('reach'))) {
+      responseText = `I will find the transaction, verify both sides over the Agent Bus, and apply our safety policy to resolve it.`;
+      const target = transactions.find((tx: any) => tx.gatewayStatus === 'TIMEOUT' || tx.gatewayStatus === 'FAILED');
+      if (target) {
+        action = { label: `Investigate ${getRecipientName(target)}`, type: 'investigate', target: target.id };
       }
     }
-
-    if (lower.includes('why did my') || lower.includes('what happened') || lower.includes('retry my')) {
-      const merchantMatch = lower.includes('zomato') ? 'USER-ZOMATO-001' : lower.includes('amazon') ? 'USER-AMAZON-001' : lower.includes('abc electronics') ? 'USER-ABC-001' : lower.includes('reliance') ? 'USER-RELIANCE-001' : null;
-      if (merchantMatch) {
-        const target = transactions.find((tx: any) => tx.recipientId === merchantMatch && (tx.gatewayStatus === 'FAILED' || tx.gatewayStatus === 'TIMEOUT' || tx.risk === 'HIGH'));
-        if (target) {
-          const merchantName = getRecipientName(target);
-          newContext = target;
-               let investigationData: any[] = [];
-          
-          if (merchantName === 'Zomato') {
-            investigationData = [
-              {
-                type: 'activity',
-                task: `Investigating ₹${target.amount.toLocaleString()} payment`,
-                status: 'Investigating',
-                activities: [
-                  `Transaction identified: ${target.id}`,
-                  'User-side transaction context checked',
-                  'Zomato authorization verified',
-                  'Verification request sent to Zomato AI Agent',
-                  'Agent Bus response received',
-                  'Payment state compared',
-                  'Retry safety policy applied'
-                ],
-                nextAction: 'Monitoring transaction',
-                targetId: target.id
-              },
-              { type: 'text', text: `⚡ I detected an inconsistency in your ₹${target.amount.toLocaleString()} payment to Zomato.` },
-              { type: 'text', text: `I am checking your transaction history.` },
-              { type: 'text', text: `Contacted Zomato's VIYORA Agent over the Agent Bus.` },
-              { type: 'text', text: `The Zomato agent reports that the payment capture state is: Not confirmed.` },
-              { type: 'text', text: `I have blocked an immediate retry for ${target.id} to prevent a duplicate charge.` },
-              { type: 'text', text: `Reconciliation status: IN PROGRESS.` },
-              { type: 'text', text: `Next Action: WAIT & MONITOR. I will continue monitoring the transaction.`, action: { label: 'Open Investigation', type: 'investigate', target: target.id } }
-            ];
-          } else if (merchantName === 'Reliance Digital') {
-            investigationData = [
-              {
-                type: 'activity',
-                task: `Investigating ₹${target.amount.toLocaleString()} payment`,
-                status: 'Investigating',
-                activities: [
-                  `Transaction identified: ${target.id}`,
-                  'User-side transaction context checked',
-                  'Reliance Digital authorization verified',
-                  'Verification request sent to Reliance Digital AI Agent',
-                  'Merchant confirms authorization failed',
-                  'No order created',
-                  'No settlement completed',
-                  'Retry safety assessed'
-                ],
-                nextAction: 'Safe to retry',
-                targetId: target.id
-              },
-              { type: 'text', text: `⚡ I detected a failed authorization in your ₹${target.amount.toLocaleString()} payment to Reliance Digital.` },
-              { type: 'text', text: `I am checking your transaction history.` },
-              { type: 'text', text: `Contacted Reliance Digital's VIYORA Agent over the Agent Bus.` },
-              { type: 'text', text: `The Reliance Digital agent confirms there is no active order or settlement.` },
-              { type: 'text', text: `There is no risk of a duplicate charge for ${target.id}.` },
-              { type: 'text', text: `Payment state: FAILED.` },
-              { type: 'text', text: `Recommendation: SAFE TO RETRY. You can safely retry this payment.`, action: { label: 'Open Investigation', type: 'investigate', target: target.id } }
-            ];
-          } else if (merchantName === 'Amazon' && currentUser.name === 'Rahul') {
-            investigationData = [
-              {
-                type: 'activity',
-                task: `Investigating ₹${target.amount.toLocaleString()} payment`,
-                status: 'Investigating',
-                activities: [
-                  `Transaction identified: ${target.id}`,
-                  'User-side transaction context checked',
-                  'Amazon authorization verified',
-                  'Verification request sent to Amazon AI Agent',
-                  'Agent Bus response received',
-                  'Payment state compared'
-                ],
-                nextAction: 'Monitoring transaction',
-                targetId: target.id
-              },
-              { type: 'text', text: `⚡ I am tracking your pending ₹${target.amount.toLocaleString()} payment to Amazon.` },
-              { type: 'text', text: `I am checking your transaction history.` },
-              { type: 'text', text: `Contacted Amazon's VIYORA Agent over the Agent Bus.` },
-              { type: 'text', text: `The Amazon agent confirms fulfillment is pending.` },
-              { type: 'text', text: `The payment is authorized but awaiting final clearing by the bank.` },
-              { type: 'text', text: `Payment state: PENDING.` },
-              { type: 'text', text: `Recommendation: WAIT & MONITOR. Do not place a duplicate order.`, action: { label: 'Open Investigation', type: 'investigate', target: target.id } }
-            ];
-          } else {
-             investigationData = [
-              {
-                type: 'activity',
-                task: `Investigating ₹${target.amount.toLocaleString()} payment`,
-                status: 'Investigating',
-                activities: [
-                  `Transaction identified: ${target.id}`,
-                  'User-side transaction context checked',
-                  `${merchantName} authorization verified`,
-                  `Verification request sent to ${merchantName} AI Agent`,
-                  'Agent Bus response received',
-                  'Payment state compared',
-                  'Reconciliation initiated'
-                ],
-                nextAction: 'Monitoring transaction',
-                targetId: target.id
-              },
-              { type: 'text', text: `⚡ I detected a gateway timeout in your ₹${target.amount.toLocaleString()} payment to ${merchantName}.` },
-              { type: 'text', text: `I am checking your transaction history.` },
-              { type: 'text', text: `Contacted ${merchantName}'s VIYORA Agent over the Agent Bus.` },
-              { type: 'text', text: `The ${merchantName} agent reports that the authorization is incomplete.` },
-              { type: 'text', text: `I have initiated background reconciliation to resolve the timeout mismatch for ${target.id}.` },
-              { type: 'text', text: `Reconciliation status: IN PROGRESS.` },
-              { type: 'text', text: `Next Action: WAIT & MONITOR. Check back in 2 hours.`, action: { label: 'Open Investigation', type: 'investigate', target: target.id } }
-            ];
-          }
-          
-          setContextTx(newContext);
-          return investigationData;
-        } else {
-          return { type: 'text', text: `I could not find any failed payments to ${merchantMatch}.` };
-        }
+    else if (lower.includes('recent') || lower.includes('show') && lower.includes('transaction')) {
+      responseText = `I am opening your transaction context now.`;
+      action = { label: 'View Transactions', type: 'navigate', target: 'transactions' };
+    }
+    else if (lower.includes('pending')) {
+      const pending = transactions.filter((tx: any) => tx.gatewayStatus === 'TIMEOUT' || tx.settlementStatus === 'NOT_COMPLETED');
+      if (pending.length > 0) {
+        responseText = `You have ${pending.length} pending payment(s).\n\nΓé╣${pending[0].amount.toLocaleString()} ${isCustomer ? 'to' : 'from'} ${getRecipientName(pending[0])}.`;
+        action = { label: 'View Transactions', type: 'navigate', target: 'transactions' };
       } else {
-        return { type: 'text', text: `Please specify the merchant to investigate.` };
+        responseText = `You don't have any pending payments right now.`;
       }
     }
-    else if (lower.includes('how are my') || lower.includes('do i have') || lower.includes('overview') || lower.includes('risky payments')) {
-      const relevantTxs = transactions.filter((tx: any) => tx.senderId === currentUser.id || tx.recipientId === currentUser.id);
-      const failed = relevantTxs.filter((tx: any) => tx.gatewayStatus === 'TIMEOUT' || tx.gatewayStatus === 'FAILED' || tx.risk === 'HIGH');
-      const completed = relevantTxs.filter((tx: any) => tx.gatewayStatus === 'SUCCESS' && tx.risk === 'LOW');
-      
-      const merchantsInvolved = [...new Set(failed.map((tx: any) => getRecipientName(tx)))];
-      
-      let overviewText = `### 📊 YOUR PAYMENT OVERVIEW\n\n${relevantTxs.length} transactions analyzed\n\n✓ ${completed.length} Completed\n⚠ ${failed.length} Require attention\n\n`;
-      
-      if (failed.length > 0) {
-        if (merchantsInvolved.length > 1) {
-           overviewText += `I found ${failed.length} transactions requiring attention across multiple merchants: ${merchantsInvolved.join(' and ')}. `;
-           overviewText += `Some transactions are currently uncertain because merchant-side confirmation is incomplete, while others have gateway timeouts.`;
-        } else {
-           overviewText += `I found ${failed.length} transaction(s) requiring attention with ${merchantsInvolved[0]}.`;
-        }
-        return { type: 'text', text: overviewText, action: { label: 'View Incidents', type: 'navigate', target: 'incidents' } };
+    else if (lower.includes('failed')) {
+      const failed = transactions.filter((tx: any) => tx.gatewayStatus === 'FAILED');
+      responseText = `You have ${failed.length} failed payment(s).`;
+    }
+    else if (lower.includes('twice') || lower.includes('duplicate')) {
+      const dupe = transactions.find((tx: any) => tx.risk === 'HIGH' || tx.type === 'DUPLICATE_SUSPECTED');
+      if (dupe) {
+        responseText = `I detected a duplicate payment risk for Γé╣${dupe.amount.toLocaleString()} ${isCustomer ? 'to' : 'from'} ${getRecipientName(dupe)}. I have already blocked further retries.`;
+        action = { label: 'View Investigation', type: 'investigate', target: dupe.id };
+        newContext = dupe;
       } else {
-        return { type: 'text', text: `### 📊 YOUR PAYMENT OVERVIEW\n\n${relevantTxs.length} transactions analyzed\n\n✓ ${completed.length} Completed\n⚠ 0 Require attention\n\nYou have no risky payments at this time. All transactions are consistent.` };
+        responseText = `I scanned your history. I have not detected any duplicate payments.`;
       }
     }
     else if (lower.includes('incident') || lower.includes('problem')) {
-      return { type: 'text', text: `I'll open the Incident Operations dashboard.`, action: { label: 'View Incidents', type: 'navigate', target: 'incidents' } };
+      responseText = `I'll open the Incident Operations dashboard.`;
+      action = { label: 'View Incidents', type: 'navigate', target: 'incidents' };
+    }
+    else if (lower.includes('agent') || lower.includes('communication') || lower.includes('network') || lower.includes('bus')) {
+      responseText = `I will show you the Agent Bus where I collaborate with Counterparty Agents.`;
+      action = { label: 'Open Agent Network', type: 'navigate', target: 'network' };
+    }
+    else if (lower.includes('check my payment to abc electronics') || lower.includes('five thousand rupee payment') || lower.includes('investigate')) {
+      const target = transactions.find((tx: any) => tx.id === 'TXN-VYR-5001');
+      if (target) {
+        responseText = `I'll investigate it now. I've contacted the recipient agent through the Agent Bus and I am analyzing the transaction.`;
+        action = { label: 'View Investigation', type: 'investigate', target: target.id };
+      } else {
+        responseText = `I could not find a high-risk transaction to investigate.`;
+      }
     }
     
     setContextTx(newContext);
-    return { type: 'text', text: "I can fetch transaction data or run an investigation on a specific payment. What would you like me to do?", suggestions };
+    return { text: responseText, action, suggestions };
   };
 
   const handleSendText = async (text: string) => {
@@ -279,11 +208,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
     
     setTimeout(async () => {
       const response = await processInput(text);
-      if (Array.isArray(response)) {
-        setMessages([...newMsgs, ...response.map((r:any) => ({ sender: 'ai', ...r }))]);
-      } else if (response) {
-        setMessages([...newMsgs, { sender: 'ai', ...response }]);
-      }
+      setMessages([...newMsgs, { sender: 'ai', type: 'text', ...response }]);
     }, 600);
   };
 
@@ -392,14 +317,9 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
     
     const response = await processInput(text);
     
-    if (Array.isArray(response)) {
-      setMessages([...newMsgs, ...response.map((r:any) => ({ sender: 'ai', ...r }))]);
-      const textToSpeak = response.map((r:any) => r.text || '').join(' ');
-      speakResponse(textToSpeak);
-    } else if (response) {
-      setMessages([...newMsgs, { sender: 'ai', ...response }]);
-      if (response.text) speakResponse(response.text);
-    }
+    setMessages([...newMsgs, { sender: 'ai', type: 'text', ...response }]);
+    
+    speakResponse(response.text);
   };
   
   const speakResponse = (text: string) => {
@@ -473,7 +393,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
               </div>
               <div>
                 <h3 className="font-bold text-sm leading-tight text-white tracking-wide">VIYORA AI AGENT</h3>
-                <p className="text-[10px] text-slate-400 font-mono">Autonomous Teammate ● Active</p>
+                <p className="text-[10px] text-slate-400 font-mono">Autonomous Teammate ΓùÅ Active</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white p-1"><Minus className="w-5 h-5" /></button>
@@ -534,7 +454,7 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
                         {voiceState === 'ready' && <span className="text-xs text-slate-400 font-bold flex items-center gap-1.5"><MicOff className="w-3.5 h-3.5" /> READY</span>}
                         {voiceState === 'listening' && <span className="text-xs text-danger font-bold flex items-center gap-1.5 animate-pulse"><Mic className="w-3.5 h-3.5" /> LISTENING...</span>}
                         {voiceState === 'processing' && <span className="text-xs text-info font-bold flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> THINKING...</span>}
-                        {voiceState === 'speaking' && <span className="text-xs text-primary font-bold flex items-center gap-1.5 animate-pulse">🔊 SPEAKING...</span>}
+                        {voiceState === 'speaking' && <span className="text-xs text-primary font-bold flex items-center gap-1.5 animate-pulse">≡ƒöè SPEAKING...</span>}
                      </div>
                      
                      <div className="flex items-center gap-2">
@@ -605,7 +525,6 @@ export default function FloatingCompanion({ transactions, currentUser, onNavigat
                      </div>
                   </div>
                 )}
-
 
                 {/* Standard Text Type */}
                 {m.type === 'text' && (
